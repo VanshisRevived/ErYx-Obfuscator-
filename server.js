@@ -3,48 +3,68 @@ const path = require('path');
 const app = express();
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Set your custom key here
-const ACCESS_PASSWORD = "EryxSecretKey123";
+// ==========================================
+// 1. YOUR SCRIPT CONFIGURATION
+// ==========================================
+const SCRIPT_NAME = "My Custom Hub";
+const ACCESS_PASSWORD = "MySecretPassword123";
 
-// Paste your raw Lua script inside the ticks below
 const LUA_SCRIPT_PAYLOAD = `
 --[[ 
-    Protected by ErYx Obfuscator Core 
+    Loaded: ${SCRIPT_NAME}
 ]]--
-print("ErYx Core: Authentication Successful!")
+print("Successfully loaded ${SCRIPT_NAME} via Executor!")
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "ErYx Loaded!",
-    Text = "Script executed successfully.",
+    Title = "${SCRIPT_NAME}",
+    Text = "Script executed successfully!",
     Duration = 5
 })
 `;
 
-// 1. Serve the UI when visiting in browser
+// ==========================================
+// 2. HELPER FUNCTION TO DETECT BROWSERS
+// ==========================================
+function isWebBrowser(req) {
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+    
+    // Check if the user agent contains standard web browser keywords
+    const browserKeywords = ['mozilla', 'chrome', 'safari', 'edge', 'firefox', 'opera'];
+    return browserKeywords.some(keyword => userAgent.includes(keyword));
+}
+
+// ==========================================
+// 3. MAIN ROUTE (AUTOMATIC DETECTOR)
+// ==========================================
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    // IF VISITED FROM A WEB BROWSER -> SHOW PASSWORD SCREEN
+    if (isWebBrowser(req)) {
+        return res.sendFile(path.join(__dirname, 'index.html'));
+    }
+
+    // IF VISITED FROM DELTA / EXECUTOR HTTPGET -> SERVE RAW SCRIPT
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(200).send(LUA_SCRIPT_PAYLOAD);
 });
 
-// 2. API route used by the Web UI
+// ==========================================
+// 4. API ENDPOINTS
+// ==========================================
+
+// Get script details (for UI displaying the Script Name)
+app.get('/api/info', (req, res) => {
+    res.json({ name: SCRIPT_NAME });
+});
+
+// Verify password submitted from web UI
 app.post('/api/verify', (req, res) => {
     const { password } = req.body;
     if (password === ACCESS_PASSWORD) {
-        return res.status(200).send(LUA_SCRIPT_PAYLOAD);
-    }
-    return res.status(401).json({ error: "Invalid Key Provided" });
-});
-
-// 3. Raw execution endpoint for loadstring
-app.get('/raw', (req, res) => {
-    const key = req.query.key;
-    if (key === ACCESS_PASSWORD) {
         res.setHeader('Content-Type', 'text/plain');
         return res.status(200).send(LUA_SCRIPT_PAYLOAD);
     }
-    res.setHeader('Content-Type', 'text/plain');
-    return res.status(401).send('-- ErYx Error: Access Denied. Invalid or missing key parameter.');
+    return res.status(401).json({ error: "Incorrect Password" });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`ErYx Server operational on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
