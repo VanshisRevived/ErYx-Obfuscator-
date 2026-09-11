@@ -1,115 +1,60 @@
 const express = require('express');
-const path = require('path');
-const crypto = require('crypto');
 const admin = require('firebase-admin');
+const cors = require('cors');
+
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Master password to allow script uploads
-const UPLOAD_PASSWORD = "EryxSecretKey123";
-
-// 1. Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK safely
 let serviceAccount;
+
 if (process.env.FIREBASE_KEY) {
-    // Read key from environment variable (For Render production)
-    serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
+    try {
+        // Option A: Parse JSON key passed via Render Environment Variable
+        serviceAccount = JSON.parse(process.env.FIREBASE_KEY);
+    } catch (err) {
+        console.error('Failed to parse FIREBASE_KEY environment variable:', err.message);
+    }
 } else {
-    // Read key from local file (For local development)
-    serviceAccount = require('./firebase-key.json');
+    try {
+        // Option B: Load local key file for local testing
+        serviceAccount = require('./firebase-key.json');
+    } catch (err) {
+        console.log('firebase-key.json not found locally.');
+    }
 }
 
+if (!serviceAccount) {
+    console.error('CRITICAL ERROR: No valid Firebase credentials provided. Set FIREBASE_KEY env var in Render.');
+    process.exit(1);
+}
+
+// Initialize Admin App
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore();
-const scriptsCollection = db.collection('scripts');
-
 console.log('✔ Firebase Firestore initialized successfully!');
 
-// 2. Serve Web UI
+// Basic test route
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.send('Server is running and Firebase is connected!');
 });
 
-// 3. API Endpoint to Upload and Store Scripts in Firebase
-app.post('/api/upload', async (req, res) => {
-    const { name, description, script, password } = req.body;
-
-    if (password !== UPLOAD_PASSWORD) {
-        return res.status(401).json({ error: "Invalid Upload Key Password" });
-    }
-
-    if (!name || !script) {
-        return res.status(400).json({ error: "Script Name and Script Code are required." });
-    }
-
+// Example route using Firestore
+app.get('/health', async (req, res) => {
     try {
-        // Generate a unique 8-character ID for the script
-        const scriptId = crypto.randomBytes(4).toString('hex');
-
-        // Save to Firebase Firestore
-        await scriptsCollection.doc(scriptId).set({
-            scriptId,
-            name,
-            description: description || "No description provided.",
-            code: script,
-            createdAt: new Date().toISOString()
-        });
-
-        const host = req.get('host');
-        const protocol = req.protocol;
-        const rawLink = `${protocol}://${host}/raw/${scriptId}`;
-
-        return res.status(200).json({
-            success: true,
-            scriptId,
-            rawLink
-        });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Firebase error occurred while saving script." });
-    }
-});
-
-// 4. Raw Execution Endpoint (Returns 403 on standard browser inspection)
-app.get('/raw/:id', async (req, res) => {
-    const scriptId = req.params.id;
-    const userAgent = req.headers['user-agent'] || '';
-    const acceptHeader = req.headers['accept'] || '';
-
-    try {
-        // Fetch script document from Firestore
-        const doc = await scriptsCollection.doc(scriptId).get();
-
-        if (!doc.exists) {
-            res.setHeader('Content-Type', 'text/plain');
-            return res.status(404).send('-- ErYx Error: Script ID not found or expired.');
-        }
-
-        const scriptData = doc.data();
-
-        // Detect browser traffic (skidders opening link directly in Chrome, Firefox, Edge, etc.)
-        const isBrowser = acceptHeader.includes('text/html') || 
-                          userAgent.includes('Mozilla') || 
-                          userAgent.includes('Chrome') || 
-                          userAgent.includes('Safari');
-
-        if (isBrowser) {
-            res.setHeader('Content-Type', 'text/plain');
-            return res.status(403).send('403 Forbidden: Access denied. Direct browser viewing is blocked.');
-        }
-
-        // Allowed execution request (Roblox HttpService / Executors)
-        res.setHeader('Content-Type', 'text/plain');
-        return res.status(200).send(scriptData.code);
-    } catch (err) {
-        res.setHeader('Content-Type', 'text/plain');
-        return res.status(500).send('-- ErYx Error: Database read failure.');
+        // Quick Firestore ping check
+        await db.listCollections();
+        res.json({ status: 'OK', database: 'Connected' });
+    } catch (error) {
+        res.status(500).json({ status: 'Error', message: error.message });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`ErYx Obfuscator Engine live on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+});
