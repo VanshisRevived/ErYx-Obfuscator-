@@ -1,68 +1,84 @@
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const app = express();
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// PASTE YOUR REAL LUA SCRIPT HERE
-const SECRET_LUA_SCRIPT = `
--- [[ Protected ErYx Script ]] --
-print("ErYx Core Executed Successfully!")
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "ErYx Hub",
-    Text = "Script Loaded Successfully!",
-    Duration = 5
-})
-`;
+// Master password to allow script uploads
+const UPLOAD_PASSWORD = "EryxSecretKey123";
 
-// Served when someone opens the raw link directly in Chrome/Edge/Firefox
-const ACCESS_DENIED_PAGE = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>ErYx Security | Protected Endpoint</title>
-    <style>
-        body { background-color: #0b0c10; color: #ff4d4d; font-family: monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1f2833; padding: 2rem; border-radius: 8px; border: 1px solid #ff4d4d; text-align: center; }
-        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-        p { color: #c5c6c7; font-size: 0.9rem; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1>403 Forbidden</h1>
-        <p>Direct browser access to raw source endpoint is blocked by ErYx Core.</p>
-    </div>
-</body>
-</html>
-`;
+// In-memory database for uploaded scripts
+const SCRIPT_DATABASE = {};
 
-// The main URL everyone uses in their loadstring
-app.get('/raw', (req, res) => {
-    const userAgent = (req.headers['user-agent'] || '').toLowerCase();
-
-    // Check if request comes from standard web browsers
-    const isBrowser = userAgent.includes('mozilla') || 
-                      userAgent.includes('chrome') || 
-                      userAgent.includes('safari') || 
-                      userAgent.includes('edge');
-
-    if (isBrowser) {
-        // Return 403 Forbidden page if someone checks the link in a browser
-        res.setHeader('Content-Type', 'text/html');
-        return res.status(403).send(ACCESS_DENIED_PAGE);
-    }
-
-    // If request comes from Roblox / HttpGet, serve the real script
-    res.setHeader('Content-Type', 'text/plain');
-    return res.status(200).send(SECRET_LUA_SCRIPT);
+// 1. Web UI Dashboard
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Fallback home endpoint
-app.get('/', (req, res) => {
-    res.setHeader('Content-Type', 'text/html');
-    res.send(ACCESS_DENIED_PAGE);
+// 2. API Endpoint to Upload and Store Scripts
+app.post('/api/upload', (req, res) => {
+    const { name, description, script, password } = req.body;
+
+    if (password !== UPLOAD_PASSWORD) {
+        return res.status(401).json({ error: "Invalid Upload Key Password" });
+    }
+
+    if (!name || !script) {
+        return res.status(400).json({ error: "Script Name and Script Code are required." });
+    }
+
+    // Generate a unique 8-character ID for the raw script link
+    const scriptId = crypto.randomBytes(4).toString('hex');
+
+    // Save to server database
+    SCRIPT_DATABASE[scriptId] = {
+        name,
+        description: description || "No description provided.",
+        code: script,
+        created: new Date().toISOString()
+    };
+
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const rawLink = `${protocol}://${host}/raw/${scriptId}`;
+
+    return res.status(200).json({
+        success: true,
+        scriptId,
+        rawLink
+    });
+});
+
+// 3. Raw Execution Endpoint (Returns 403 on standard browser inspection)
+app.get('/raw/:id', (req, res) => {
+    const scriptId = req.params.id;
+    const userAgent = req.headers['user-agent'] || '';
+    const acceptHeader = req.headers['accept'] || '';
+
+    const scriptData = SCRIPT_DATABASE[scriptId];
+
+    if (!scriptData) {
+        res.setHeader('Content-Type', 'text/plain');
+        return res.status(404).send('-- ErYx Error: Script ID not found or expired.');
+    }
+
+    // Detect browser traffic (skidders opening link directly in Chrome, Firefox, Edge, etc.)
+    const isBrowser = acceptHeader.includes('text/html') || 
+                      userAgent.includes('Mozilla') || 
+                      userAgent.includes('Chrome') || 
+                      userAgent.includes('Safari');
+
+    if (isBrowser) {
+        res.setHeader('Content-Type', 'text/plain');
+        return res.status(403).send('403 Forbidden: Access denied. Direct browser viewing is blocked.');
+    }
+
+    // Allowed execution request (Roblox HttpService / Executors)
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(200).send(scriptData.code);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`ErYx Server Online on port ${PORT}`));
+app.listen(PORT, () => console.log(`ErYx Obfuscator Engine live on port ${PORT}`));
