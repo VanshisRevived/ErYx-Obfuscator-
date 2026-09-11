@@ -1,5 +1,5 @@
 {
-  "name": "eryx-obfuscator-portal",
+  "name": "auto-detect-script-portal",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
