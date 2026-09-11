@@ -3,111 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protected Script Vault</title>
+    <title>ErYx Obfuscator | Script Hub Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background-color: #0d0f12;
-            color: #e1e6ed;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        body { background-color: #0b0c10; color: #c5c6c7; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { background: #1f2833; border: 1px solid #45a29e; border-radius: 12px; padding: 2rem; width: 100%; max-width: 600px; box-shadow: 0 10px 30px rgba(0, 255, 170, 0.05); }
+        .header { text-align: center; margin-bottom: 1.5rem; }
+        .logo { font-size: 2.2rem; font-weight: 700; color: #66fcf1; letter-spacing: 2px; }
+        .subtitle { font-size: 0.85rem; color: #a0aab2; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .form-group { margin-bottom: 1.2rem; display: flex; flex-direction: column; text-align: left; }
+        label { font-size: 0.85rem; font-weight: 600; color: #66fcf1; margin-bottom: 6px; }
+        input[type="text"], input[type="password"], textarea {
+            width: 100%; padding: 12px; background: #0b0c10; border: 1px solid #45a29e; border-radius: 6px; color: #66fcf1; font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; outline: none; transition: border 0.3s;
         }
-        .card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 2rem;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-            text-align: center;
-        }
-        h2 { font-size: 1.5rem; color: #58a6ff; margin-bottom: 0.5rem; }
-        p { font-size: 0.85rem; color: #8b949e; margin-bottom: 1.5rem; }
-        input[type="password"] {
-            width: 100%;
-            padding: 10px 14px;
-            background: #0d0f12;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            color: #fff;
-            margin-bottom: 1rem;
-            outline: none;
-        }
-        input[type="password"]:focus { border-color: #58a6ff; }
-        button {
-            width: 100%;
-            padding: 10px;
-            background: #238636;
-            border: none;
-            border-radius: 6px;
-            color: #fff;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        button:hover { background: #2ea043; }
-        .output {
-            margin-top: 1rem;
-            background: #0d0f12;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 0.8rem;
-            text-align: left;
-            display: none;
-            max-height: 180px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .error { color: #f85149; border-color: #f85149; }
-        .success { color: #3fb950; border-color: #238636; }
+        input:focus, textarea:focus { border-color: #66fcf1; box-shadow: 0 0 8px rgba(102, 252, 241, 0.3); }
+        textarea { height: 180px; resize: vertical; }
+
+        button { width: 100%; padding: 14px; background: #45a29e; border: none; border-radius: 6px; color: #0b0c10; font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.3s; margin-top: 10px; }
+        button:hover { background: #66fcf1; }
+
+        .result-box { margin-top: 1.5rem; background: #0b0c10; border: 1px solid #45a29e; border-radius: 6px; padding: 15px; display: none; }
+        .result-title { color: #66fcf1; font-size: 0.9rem; font-weight: bold; margin-bottom: 8px; }
+        .raw-link { font-family: 'JetBrains Mono', monospace; color: #fff; font-size: 0.85rem; word-break: break-all; background: #1f2833; padding: 10px; border-radius: 4px; border: 1px solid #333; margin-bottom: 10px; }
+        .loadstring-box { font-family: 'JetBrains Mono', monospace; color: #00ff66; font-size: 0.8rem; word-break: break-all; background: #000; padding: 10px; border-radius: 4px; }
+        .error { color: #ff4d4d; font-size: 0.9rem; text-align: center; margin-top: 10px; display: none; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2 id="scriptTitle">Loading...</h2>
-        <p>This script is protected. Enter password to view source.</p>
-        
-        <input type="password" id="passInput" placeholder="Enter Password">
-        <button onclick="unlock()">Unlock Script</button>
+    <div class="container">
+        <div class="header">
+            <div class="logo">ErYx</div>
+            <div class="subtitle">Protected Script Uploader</div>
+        </div>
 
-        <div id="output" class="output"></div>
+        <div class="form-group">
+            <label>Master Upload Password</label>
+            <input type="password" id="uploadPass" placeholder="Enter password to publish...">
+        </div>
+
+        <div class="form-group">
+            <label>Script Name</label>
+            <input type="text" id="scriptName" placeholder="e.g., ErYx Auto Farm Hub v1">
+        </div>
+
+        <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="scriptDesc" placeholder="e.g., Main script for Blox Fruits with anti-cheat bypass">
+        </div>
+
+        <div class="form-group">
+            <label>&lt;Script&gt; Source Code</label>
+            <textarea id="scriptCode" placeholder="-- Paste your raw or obfuscated Lua script code here..."></textarea>
+        </div>
+
+        <button onclick="createRawLink()">Create Script Raw Link</button>
+
+        <div id="errorMsg" class="error"></div>
+
+        <div id="resultBox" class="result-box">
+            <div class="result-title">✔ Script Protected & Generated!</div>
+            <label>Raw Script Link:</label>
+            <div id="rawLink" class="raw-link"></div>
+            <label>Loadstring Snippet:</label>
+            <div id="loadstringSnippet" class="loadstring-box"></div>
+        </div>
     </div>
 
     <script>
-        // Fetch script name on load
-        fetch('/api/info')
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById('scriptTitle').textContent = data.name;
-            });
+        async function createRawLink() {
+            const password = document.getElementById('uploadPass').value;
+            const name = document.getElementById('scriptName').value;
+            const description = document.getElementById('scriptDesc').value;
+            const script = document.getElementById('scriptCode').value;
 
-        async function unlock() {
-            const password = document.getElementById('passInput').value;
-            const output = document.getElementById('output');
+            const errorMsg = document.getElementById('errorMsg');
+            const resultBox = document.getElementById('resultBox');
+            
+            errorMsg.style.display = 'none';
+            resultBox.style.display = 'none';
 
-            output.style.display = 'block';
-            output.className = 'output';
-            output.textContent = 'Verifying...';
-
-            const response = await fetch('/api/verify', {
+            const response = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({ password, name, description, script })
             });
 
+            const data = await response.json();
+
             if (response.ok) {
-                const text = await response.text();
-                output.classList.add('success');
-                output.textContent = text;
+                resultBox.style.display = 'block';
+                document.getElementById('rawLink').innerText = data.rawLink;
+                document.getElementById('loadstringSnippet').innerText = `loadstring(game:HttpGet("${data.rawLink}"))()`;
             } else {
-                output.classList.add('error');
-                output.textContent = 'Access Denied: Incorrect Password';
+                errorMsg.style.display = 'block';
+                errorMsg.innerText = data.error || "Failed to create raw script link.";
             }
         }
     </script>
